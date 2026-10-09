@@ -128,6 +128,7 @@ tools=$(mcp "${token}" '{"jsonrpc":"2.0","id":2,"method":"tools/list"}')
 check "MCP lists the Kaneo tools" bash -c "jq -e '.result.tools | map(.name) | index(\"create_task\") and index(\"list_workspaces\")' <<<\"\$1\"" _ "${tools}"
 whoami=$(mcp "${token}" '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"whoami","arguments":{}}}')
 check "MCP tool call runs as the user" grep -q "admin@example.com" <<<"${whoami}"
+check "MCP whoami does not reveal the session token" no_match "${token}" "${whoami}"
 
 echo "==> Restart"
 docker restart "${ID}-app" >/dev/null

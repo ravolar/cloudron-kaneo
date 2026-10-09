@@ -149,6 +149,10 @@ Use a key restricted to the bucket.
   `127.0.0.1:1337`, so other containers on the Cloudron network can only reach Kaneo through
   nginx on port 8000. The API trusts only that nginx for `X-Forwarded-For`; nginx takes the client
   address from Cloudron's reverse proxy.
+* **MCP `whoami` patched.** Upstream's built-in MCP endpoint answers `whoami` with the full
+  session, including the caller's own session token, IP address and user agent, which would put
+  the token into the MCP client's conversation. The package points it at `/api/user/me` (id, name,
+  email, image, role). The patch is applied at build time and skipped once upstream fixes it.
 * **No anonymous access by default**: guest access is off and registration is limited as
   described in [Users and sign-in](#users-and-sign-in).
 * The web app's public URLs are filled in by upstream's own renderer on a root-owned copy; the

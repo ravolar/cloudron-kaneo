@@ -27,6 +27,17 @@ RUN set -eux; \
         exit 1; \
     fi
 
+# MCP whoami fix: with OAuth/session tokens (the built-in HTTP endpoint) upstream returns the whole
+# /api/auth/get-session response, which contains the caller's own session token, IP address and
+# user agent, putting the token into the MCP client's conversation. /api/user/me returns only id,
+# name, email, image and role, and accepts the same bearer token. Skipped once upstream fixes it.
+RUN set -eux; \
+    f=/app/code/kaneo/packages/mcp/dist/tools/register.js; \
+    if grep -q '"/api/auth/get-session"' "$f"; then \
+        sed -i 's#client\.usingApiKey ? "/api/user/me" : "/api/auth/get-session"#"/api/user/me"#' "$f"; \
+    fi; \
+    ! grep -q 'get-session' "$f"
+
 # Build-time gates: fail here, not on a user's server. Upstream builds on Alpine; all API runtime
 # dependencies are pure JavaScript, so they must load on this glibc Node as well.
 RUN set -eux; \

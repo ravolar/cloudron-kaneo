@@ -1,2 +1,3 @@
 [0.1.0]
 * Initial release: Kaneo 2.36.0
+* MCP whoami returns the user (id, name, email, role) instead of the full session, which included the caller's session token

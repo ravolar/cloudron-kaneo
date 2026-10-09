@@ -4,3 +4,6 @@
 
 [0.1.1]
 * Browsers revalidate the web app after updates (Cache-Control)
+
+[0.1.2]
+* Review fixes: Cloudron sign-in only by default, rate limits, clean environment

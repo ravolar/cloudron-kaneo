@@ -79,7 +79,7 @@ jobs:
             bump=false
           fi
           echo "bump=${bump}" >> "$GITHUB_OUTPUT"
-          if [[ "${upstream}" == false && "${FORCE}" != true ]]; then
+          if [[ "${upstream}" == false && "${FORCE}" != true && "${bump}" == true ]]; then
             echo "release=false" >> "$GITHUB_OUTPUT"
             echo "### Kaneo is up to date" >> "$GITHUB_STEP_SUMMARY"
             echo "Kaneo ${VERSION} is already packaged; nothing to do." >> "$GITHUB_STEP_SUMMARY"
@@ -111,7 +111,11 @@ jobs:
               if [[ "${UPSTREAM_CHANGED}" != true && -z "${NOTES}" ]]; then echo "* Package maintenance release"; fi
             } >> CHANGELOG
           else
+            # First release: keep the version, but ship the latest Kaneo.
             new=${old}
+            jq --arg u "$KANEO" '.upstreamVersion = $u' CloudronManifest.json > m.json
+            mv m.json CloudronManifest.json
+            sed -i -E "s/^\* Initial release: Kaneo [0-9.]+$/* Initial release: Kaneo ${KANEO}/" CHANGELOG
           fi
           echo "version=${new}" >> "$GITHUB_OUTPUT"
           echo "kaneo=$(jq -r .upstreamVersion CloudronManifest.json)" >> "$GITHUB_OUTPUT"

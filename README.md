@@ -45,21 +45,33 @@ record for the app's hostname yourself **before** installing, so the certificate
 
 ## Users and sign-in
 
-|  | With Cloudron user management | Without |
+|  | With Cloudron user management (recommended) | Without |
 |---|---|---|
-| Sign in | **Continue with OIDC** (Cloudron account); email sign-in for invited users | email |
-| New users | any Cloudron user the app's access settings allow, or by invitation | by invitation only |
-| Package default | `DISABLE_PASSWORD_REGISTRATION="true"` | `DISABLE_REGISTRATION="true"` |
+| Sign in | **Continue with OIDC** (Cloudron account) only | email (codes or password) |
+| New users | any Cloudron user the app's access settings allow | by invitation only |
+| Invitations | add Cloudron users to workspaces | create the account and add it to the workspace |
+| Package defaults | `DISABLE_LOGIN_FORM="true"`, `DISABLE_PASSWORD_REGISTRATION="true"` | `DISABLE_REGISTRATION="true"` |
 
-Anonymous guest access is off (`DISABLE_GUEST_ACCESS="true"`). All three defaults can be changed
-in `env.sh`. Invitations, sign-in codes and password resets are sent through Cloudron's mail
-server; when SMTP is available Kaneo signs in with emailed codes by default
-(`DISABLE_EMAIL_OTP_SIGN_IN="true"` switches to passwords).
+Anonymous guest access is off in both modes (`DISABLE_GUEST_ACCESS="true"`). Invitations, sign-in
+codes and password resets are sent through Cloudron's mail server; when SMTP is available Kaneo
+signs in with emailed codes by default (`DISABLE_EMAIL_OTP_SIGN_IN="true"` switches to passwords).
 
-To allow **only** Cloudron sign-in, set `DISABLE_LOGIN_FORM="true"` (and optionally
-`CUSTOM_OAUTH_AUTO_LOGIN="true"`). Do this only after existing local accounts have verified their
-email addresses, otherwise their OIDC sign-in can't be linked (`account_not_linked`); see
-[upstream's note](https://kaneo.app/docs/core/installation/environment-variables).
+**The first account becomes the instance administrator**, and Kaneo accepts the first sign-up
+whatever the `DISABLE_*` settings say. With Cloudron user management the package therefore also
+closes local password sign-up at its proxy, so only a Cloudron user can become the first account.
+Without it, anyone who reaches a fresh installation first could claim the admin account: create
+yours right after installing and check under Admin that you are the only user.
+
+With Cloudron user management, people who should not get a Cloudron account (outside
+collaborators) cannot join by default. To allow local accounts next to Cloudron sign-in, set
+`DISABLE_LOGIN_FORM="false"` and, for invited people to create a password account,
+`DISABLE_PASSWORD_REGISTRATION="false"`. Then set `DISABLE_REGISTRATION="true"` so that
+newcomers still need an invitation. `CUSTOM_OAUTH_AUTO_LOGIN="true"` skips the sign-in page and
+goes straight to Cloudron.
+
+If you switch an installation that already has local accounts to Cloudron sign-in only, make sure
+those accounts have verified email addresses first, otherwise their OIDC sign-in can't be linked
+(`account_not_linked`); see [upstream's note](https://kaneo.app/docs/core/installation/environment-variables).
 
 ## MCP
 
@@ -148,11 +160,17 @@ Use a key restricted to the bucket.
 * **Loopback API.** Upstream's API listens on every interface; `loopback.mjs` binds it to
   `127.0.0.1:1337`, so other containers on the Cloudron network can only reach Kaneo through
   nginx on port 8000. The API trusts only that nginx for `X-Forwarded-For`; nginx takes the client
-  address from Cloudron's reverse proxy.
+  address from `X-Real-IP` only when the request comes from Cloudron's reverse proxy
+  (`CLOUDRON_PROXY_IP`).
 * **MCP `whoami` patched.** Upstream's built-in MCP endpoint answers `whoami` with the full
   session, including the caller's own session token, IP address and user agent, which would put
   the token into the MCP client's conversation. The package points it at `/api/user/me` (id, name,
   email, image, role). The patch is applied at build time and skipped once upstream fixes it.
+* **Rate limits** (per client address, at nginx): password, code and link sign-in, sign-up and
+  password reset 10/min (burst 20), since Kaneo does not rate-limit them on self-hosted
+  instances; MCP client registration 5/min (burst 10).
+* **Clean environments.** Supervisor starts with an empty environment, so Cloudron's addon
+  credentials and the package's secrets reach only the API (through `app-env.sh`), not nginx.
 * **No anonymous access by default**: guest access is off and registration is limited as
   described in [Users and sign-in](#users-and-sign-in).
 * The web app's public URLs are filled in by upstream's own renderer on a root-owned copy; the
@@ -202,7 +220,16 @@ bucket.
 | No invitation or sign-in emails | app → Email: outbound mail must be enabled; Cloudron's mail logs |
 | `account_not_linked` after enabling SSO-only | see [Users and sign-in](#users-and-sign-in) |
 | MCP client gets 401 | sign in again from the client; the token is per user and expires |
+| "Something went wrong" / "Failed to fetch dynamically imported module" after an update or restart | the browser cached Cloudron's "app is down" page (served with status 200 while the app restarts) under a file URL; clear the site's data in the browser (incognito works meanwhile). See below |
+| MCP clients can't connect, registration answers 429 for a long time | the MCP client store is full (Kaneo keeps at most 1000 registered clients for 30 days); remove them with `psql "$CLOUDRON_POSTGRESQL_URL" -c "DELETE FROM mcp_oauth_state WHERE kind='client'"` (web terminal), then reconnect the clients |
 | Real-time updates do not arrive | the app must be opened at its Cloudron domain (WebSocket origin check) |
+
+While an app is stopped, restarting or updating, Cloudron's proxy answers every URL with its
+"app is down" page with HTTP status 200, no `Cache-Control` and an old `Last-Modified`, which
+browsers may keep for hours. A browser that requested a not-yet-loaded part of the app during that
+time then fails until its cache entry expires. This is outside the package's control (it never
+sees those requests); the package keeps the effect small by letting browsers cache the app's files
+for 7 days and revalidate `index.html` on every load.
 
 ## Migrating an existing Kaneo installation
 
@@ -210,7 +237,8 @@ bucket.
 2. Dump the old database (`pg_dump --no-owner --no-acl`) and restore it into the app's database
    (`cloudron exec` → `psql "$CLOUDRON_POSTGRESQL_URL"`, or the PostgreSQL addon credentials).
 3. Put the old `AUTH_SECRET` and `NOTIFICATION_SECRET_ENCRYPTION_KEY` into
-   `/app/data/.secrets/secrets.env` (web terminal) and the old optional settings into `env.sh`.
+   `/app/data/.secrets/secrets.env` (web terminal; quote values that contain `=`, `+` or `/`,
+   e.g. base64) and the old optional settings into `env.sh`.
 4. Start the app; Kaneo migrates the schema to its version. Then move the app to the final domain.
 
 The old installation must not be newer than the package's Kaneo version.

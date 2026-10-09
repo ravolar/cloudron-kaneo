@@ -61,16 +61,21 @@ if [[ ! -f /app/data/env.sh ]]; then
 
 # --- Sign-up ------------------------------------------------------------------------------
 # The first account becomes the instance administrator. Package defaults:
-#   with Cloudron user management:  DISABLE_PASSWORD_REGISTRATION="true" (new users sign in
-#                                   with their Cloudron account; invited users can still sign up)
-#   without it:                     DISABLE_REGISTRATION="true" (new users by invitation only)
+#   with Cloudron user management:  Cloudron sign-in only. DISABLE_LOGIN_FORM="true" and
+#                                   DISABLE_PASSWORD_REGISTRATION="true": every user signs in
+#                                   with a Cloudron account (the app's access settings decide
+#                                   who), and nobody can claim the admin account by signing up
+#                                   locally before you. Invitations add Cloudron users to
+#                                   workspaces.
+#   without it:                     DISABLE_REGISTRATION="true": new users by invitation only.
 #   always:                         DISABLE_GUEST_ACCESS="true"
-# DISABLE_REGISTRATION="true"
+# See the README ("Users and sign-in") before changing these.
+# DISABLE_LOGIN_FORM="true"
 # DISABLE_PASSWORD_REGISTRATION="true"
+# DISABLE_REGISTRATION="true"
 # DISABLE_GUEST_ACCESS="true"
 # DISABLE_WORKSPACE_CREATION="false"   # "true": only instance admins create workspaces
 # DISABLE_EMAIL_OTP_SIGN_IN="false"    # "true": email + password instead of emailed codes
-# DISABLE_LOGIN_FORM="false"           # "true": Cloudron sign-in only (see the README first)
 # CUSTOM_OAUTH_AUTO_LOGIN="false"      # "true": skip the sign-in page, go straight to Cloudron
 
 # --- Attachments (object storage) ---------------------------------------------------------
@@ -192,13 +197,20 @@ if [[ -n "${CLOUDRON_MAIL_SMTP_SERVER:-}" ]]; then
     export SMTP_REQUIRE_TLS="false"
     export SMTP_USER="${CLOUDRON_MAIL_SMTP_USERNAME}"
     export SMTP_PASSWORD="${CLOUDRON_MAIL_SMTP_PASSWORD}"
-    export SMTP_FROM="${CLOUDRON_MAIL_FROM_DISPLAY_NAME:-Kaneo} <${CLOUDRON_MAIL_FROM}>"
+    # Quoted display name: a comma or quote in it would otherwise break the address.
+    display_name=${CLOUDRON_MAIL_FROM_DISPLAY_NAME:-Kaneo}
+    display_name=${display_name//[\"\\]/}
+    export SMTP_FROM="\"${display_name}\" <${CLOUDRON_MAIL_FROM}>"
     derived+=(SMTP_HOST SMTP_PORT SMTP_SECURE SMTP_REQUIRE_TLS SMTP_USER SMTP_PASSWORD SMTP_FROM)
 fi
 
 # Sign-in with Cloudron accounts (oidc addon; only present when the app uses Cloudron user
 # management). Without it, CUSTOM_OAUTH_* from env.sh (another identity provider) are kept.
+# KANEO_CLOUDRON_SSO selects the sign-up defaults in app-env.sh.
+export KANEO_CLOUDRON_SSO=false
+derived+=(KANEO_CLOUDRON_SSO)
 if [[ -n "${CLOUDRON_OIDC_CLIENT_ID:-}" ]]; then
+    KANEO_CLOUDRON_SSO=true
     export CUSTOM_OAUTH_CLIENT_ID="${CLOUDRON_OIDC_CLIENT_ID}"
     export CUSTOM_OAUTH_CLIENT_SECRET="${CLOUDRON_OIDC_CLIENT_SECRET}"
     export CUSTOM_OAUTH_DISCOVERY_URL="${CLOUDRON_OIDC_DISCOVERY_URL}"
@@ -227,13 +239,35 @@ find /run/kaneo/html -type f -name '*.js' -print0 |
         env -i LC_ALL=C KANEO_API_URL="${KANEO_API_URL}" KANEO_CLIENT_URL="${KANEO_CLIENT_URL}" \
             KANEO_TURNSTILE_SITE_KEY="$(file_value /app/data/env.sh KANEO_TURNSTILE_SITE_KEY)" \
             awk -v mode=bundle -f /app/code/env.awk "${asset}" > "${asset}.tmp"
+        # Keep the image's timestamp, so restarts don't invalidate the browsers' cached copies.
+        touch -r "${asset}" "${asset}.tmp"
         mv -f "${asset}.tmp" "${asset}"
     done
 chown -R root:root /run/kaneo/html
 chmod -R a+rX,go-w /run/kaneo/html
 
-# Warnings only: read the values as text, without evaluating env.sh.
 env_value() { file_value /app/data/env.sh "$1"; }
+
+# Runtime parts of the nginx configuration.
+# - Client addresses are only taken from Cloudron's reverse proxy, not from other containers.
+proxy_ip=${CLOUDRON_PROXY_IP:-172.18.0.1}
+if [[ ! "${proxy_ip}" =~ ^[0-9a-fA-F.:]+$ ]]; then
+    echo "==> WARNING: unexpected CLOUDRON_PROXY_IP '${proxy_ip}', using 172.18.0.1"
+    proxy_ip=172.18.0.1
+fi
+printf 'set_real_ip_from %s;\n' "${proxy_ip}" > /run/kaneo/nginx-http.conf
+# - With Cloudron sign-in, local password sign-up stays closed at the proxy too: Kaneo accepts
+#   it for the very first account whatever DISABLE_* say, so whoever reached a fresh install
+#   first could otherwise claim the admin account. Reopened only by
+#   DISABLE_PASSWORD_REGISTRATION="false" in env.sh.
+if [[ "${KANEO_CLOUDRON_SSO}" == true && "$(env_value DISABLE_PASSWORD_REGISTRATION)" != false ]]; then
+    printf 'location = /api/auth/sign-up/email {\n    return 403;\n}\n' > /run/kaneo/nginx-server.conf
+else
+    : > /run/kaneo/nginx-server.conf
+fi
+chmod 644 /run/kaneo/nginx-http.conf /run/kaneo/nginx-server.conf
+
+# Warnings only: read the values as text, without evaluating env.sh.
 if [[ -z "$(env_value S3_ENDPOINT)" || -z "$(env_value S3_BUCKET)" ]]; then
     echo "==> NOTE: object storage is not configured, so attachments are disabled (see /app/data/env.sh)."
 fi
@@ -256,5 +290,9 @@ for attempt in $(seq 1 60); do
 done
 
 # The API runs its database migrations itself on start, before it begins listening.
+# Start supervisor with a clean environment: this script's secrets and Cloudron's addon
+# credentials would otherwise be inherited by every program, nginx included. The API gets what it
+# needs from env.sh and kaneo.env through app-env.sh.
 echo "==> Starting Kaneo"
-exec /usr/bin/supervisord --configuration /etc/supervisor/supervisord.conf --nodaemon
+exec env -i PATH="${PATH}" LANG=C.UTF-8 \
+    /usr/bin/supervisord --configuration /etc/supervisor/supervisord.conf --nodaemon

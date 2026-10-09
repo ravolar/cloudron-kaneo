@@ -17,10 +17,11 @@ source /run/kaneo/kaneo.env
 set +o allexport
 set -u
 
-# Sign-up defaults, unless env.sh sets them: no anonymous guests; with Cloudron user management new
-# users come in through their Cloudron account (or an invitation), otherwise by invitation only.
+# Sign-up defaults, unless env.sh sets them: no anonymous guests; with Cloudron user management
+# everyone signs in with a Cloudron account, otherwise new users come by invitation only.
 export DISABLE_GUEST_ACCESS="${DISABLE_GUEST_ACCESS:-true}"
-if [[ -n "${CLOUDRON_OIDC_CLIENT_ID:-}" ]]; then
+if [[ "${KANEO_CLOUDRON_SSO:-false}" == true ]]; then
+    export DISABLE_LOGIN_FORM="${DISABLE_LOGIN_FORM:-true}"
     export DISABLE_PASSWORD_REGISTRATION="${DISABLE_PASSWORD_REGISTRATION:-true}"
 else
     export DISABLE_REGISTRATION="${DISABLE_REGISTRATION:-true}"

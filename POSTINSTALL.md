@@ -1,10 +1,11 @@
-The **first account** that signs up becomes the instance administrator: open the app and create it now.
+The **first account** becomes the instance administrator: open the app and sign in **now**.
 
-* With Cloudron user management, sign in with **Continue with OIDC**; new users then join with their
-  Cloudron account or an invitation.
-* Without it, sign up with email and password; further users join by invitation only.
+* With Cloudron user management, sign in with **Continue with OIDC**. Only Cloudron users can sign
+  in; the app's access settings decide who.
+* Without it, sign up with email and password, then check under Admin that you are the only user;
+  further users join by invitation only.
 
 To connect an MCP client (Claude, Cursor, ...), use `https://$CLOUDRON-APP-DOMAIN/api/mcp`.
 
-Sign-up policy, attachments (S3 storage) and integrations are set in `/app/data/env.sh`
+Sign-in policy, attachments (S3 storage) and integrations are set in `/app/data/env.sh`
 (File Manager); restart the app after editing.

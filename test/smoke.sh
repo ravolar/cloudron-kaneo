@@ -56,7 +56,7 @@ start_app() {
         -e CLOUDRON_POSTGRESQL_HOST="${ID}-pg" -e CLOUDRON_POSTGRESQL_PORT=5432 \
         -e CLOUDRON_POSTGRESQL_USERNAME=kaneouser -e CLOUDRON_POSTGRESQL_PASSWORD='p+w/d=1' \
         -e CLOUDRON_POSTGRESQL_DATABASE=kaneodb \
-        "${IMAGE}" >/dev/null
+        "$@" "${IMAGE}" >/dev/null
 }
 
 wait_ready() {
@@ -110,6 +110,8 @@ run_checks() {
     check "app user cannot read the secrets" bash -c "! docker exec -u cloudron ${ID}-app cat /app/data/.secrets/secrets.env"
     check "app user cannot write env.sh" bash -c "! docker exec -u cloudron ${ID}-app sh -c 'echo x >> /app/data/env.sh'"
     check "app user cannot change the web app" bash -c "! docker exec -u cloudron ${ID}-app sh -c 'echo x >> /run/kaneo/html/index.html'"
+    check "supervisor does not carry addon credentials" bash -c "! docker exec ${ID}-app cat /proc/1/environ | tr '\\0' '\\n' | grep -qE '^(CLOUDRON_POSTGRESQL_PASSWORD|AUTH_SECRET|DATABASE_URL)='"
+    check "nginx does not carry secrets" bash -c "! docker exec ${ID}-app bash -c 'cat /proc/\$(pgrep -o nginx)/environ' | tr '\\0' '\\n' | grep -qE '^(AUTH_SECRET|DATABASE_URL|NOTIFICATION_SECRET_ENCRYPTION_KEY)='"
     check "Kaneo processes run as the app user (uid 1000)" test "$(app_exec bash -c 'for p in /proc/[0-9]*; do case "$(cat "$p/comm" 2>/dev/null)" in node|nginx) awk "/^Uid:/{print \$2}" "$p/status";; esac; done | sort -u | tr -d "\n"')" = "1000"
 }
 
@@ -136,6 +138,10 @@ whoami=$(mcp "${token}" '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":
 check "MCP tool call runs as the user" grep -q "admin@example.com" <<<"${whoami}"
 check "MCP whoami does not reveal the session token" no_match "${token}" "${whoami}"
 
+codes=$(for _ in $(seq 1 40); do status -X POST -H "Origin: ${ORIGIN}" -H 'Content-Type: application/json' \
+    -d '{"email":"nobody@example.com","password":"wrong-password-123"}' "${ORIGIN}/api/auth/sign-in/email"; echo; done)
+check "password sign-in is rate-limited" grep -q 429 <<<"${codes}"
+
 echo "==> Restart"
 docker restart "${ID}-app" >/dev/null
 if wait_ready; then pass "app restarted"; else fail "app restarted"; docker logs "${ID}-app" 2>&1 | tail -40; exit 1; fi
@@ -143,6 +149,24 @@ check "still healthy after restart" test "$(status "${ORIGIN}/api/health")" = 20
 check "secrets kept across restart" test "$(app_exec stat -c %U:%a /app/data/.secrets/secrets.env)" = "root:600"
 whoami=$(mcp "${token}" '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"whoami","arguments":{}}}')
 check "sessions survive a restart (stable AUTH_SECRET)" grep -q "admin@example.com" <<<"${whoami}"
+
+echo "==> With Cloudron user management (OIDC addon)"
+docker rm -f "${ID}-app" >/dev/null
+start_app -e CLOUDRON_OIDC_CLIENT_ID=smoke-oidc -e CLOUDRON_OIDC_CLIENT_SECRET=smoke-secret \
+    -e CLOUDRON_OIDC_DISCOVERY_URL=https://oidc.invalid/openid/.well-known/openid-configuration \
+    -e CLOUDRON_OIDC_ISSUER=https://oidc.invalid/openid -e CLOUDRON_PROXY_IP=172.18.0.1
+if wait_ready; then pass "app started with SSO"; else fail "app started with SSO"; docker logs "${ID}-app" 2>&1 | tail -40; exit 1; fi
+config=$(curl -fs "${ORIGIN}/api/config")
+check "Cloudron sign-in offered" test "$(jq -r .hasCustomOAuth <<<"${config}")" = true
+check "local sign-in form disabled" test "$(jq -r .disableLoginForm <<<"${config}")" = true
+check "local password registration disabled" test "$(jq -r .disablePasswordRegistration <<<"${config}")" = true
+check "password sign-up closed at the proxy" test "$(status -X POST -H "Origin: ${ORIGIN}" -H 'Content-Type: application/json' \
+    -d '{"email":"late@example.com","password":"Smoke-test-pass-123","name":"Late"}' "${ORIGIN}/api/auth/sign-up/email")" = 403
+check "local password sign-in refused" no_match '"token"' "$(curl -s -X POST -H "Origin: ${ORIGIN}" -H 'Content-Type: application/json' \
+    -d '{"email":"admin@example.com","password":"Smoke-test-pass-123"}' "${ORIGIN}/api/auth/sign-in/email")"
+check "client addresses trusted from Cloudron's proxy only" app_exec grep -qx 'set_real_ip_from 172.18.0.1;' /run/kaneo/nginx-http.conf
+whoami=$(mcp "${token}" '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"whoami","arguments":{}}}')
+check "existing MCP sessions keep working" grep -q "admin@example.com" <<<"${whoami}"
 
 if [[ ${FAILED} -ne 0 ]]; then
     echo "==> SMOKE TEST FAILED"

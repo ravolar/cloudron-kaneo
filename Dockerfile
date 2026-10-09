@@ -64,6 +64,10 @@ COPY supervisor/ /etc/supervisor/conf.d/
 RUN chmod 0755 /app/pkg /app/pkg/start.sh /app/pkg/app-env.sh \
     && chmod 0644 /app/pkg/loopback.mjs /app/pkg/nginx.conf /etc/supervisor/conf.d/*.conf
 
-RUN mkdir -p /run/kaneo/nginx /run/kaneo/html && nginx -e stderr -t -c /app/pkg/nginx.conf && rm -rf /run/kaneo
+RUN mkdir -p /run/kaneo/nginx /run/kaneo/html \
+    && echo 'set_real_ip_from 172.18.0.1;' > /run/kaneo/nginx-http.conf \
+    && printf 'location = /api/auth/sign-up/email {\n    return 403;\n}\n' > /run/kaneo/nginx-server.conf \
+    && nginx -e stderr -t -c /app/pkg/nginx.conf \
+    && rm -rf /run/kaneo
 
 CMD [ "/app/pkg/start.sh" ]

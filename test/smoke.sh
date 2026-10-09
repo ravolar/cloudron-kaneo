@@ -32,6 +32,12 @@ fail() { echo "  FAIL  $1"; FAILED=1; }
 check() { local name=$1; shift; if "$@" >/dev/null 2>&1; then pass "${name}"; else fail "${name}"; fi; }
 app_exec() { docker exec "${ID}-app" "$@"; }
 no_match() { ! grep -qE "$1" <<<"$2"; }
+# Reads the API's environment as its own user (root in the container may not read other users'
+# /proc/<pid>/environ without CAP_SYS_PTRACE).
+api_has_auth_secret() {
+    docker exec -u cloudron "${ID}-app" bash -c 'tr "\0" "\n" < "/proc/$(pgrep -f dist/index.js | head -1)/environ"' |
+        grep -q '^AUTH_SECRET='
+}
 status() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
 
 echo "==> Starting PostgreSQL"
@@ -111,7 +117,9 @@ run_checks() {
     check "app user cannot write env.sh" bash -c "! docker exec -u cloudron ${ID}-app sh -c 'echo x >> /app/data/env.sh'"
     check "app user cannot change the web app" bash -c "! docker exec -u cloudron ${ID}-app sh -c 'echo x >> /run/kaneo/html/index.html'"
     check "supervisor does not carry addon credentials" bash -c "! docker exec ${ID}-app cat /proc/1/environ | tr '\\0' '\\n' | grep -qE '^(CLOUDRON_POSTGRESQL_PASSWORD|AUTH_SECRET|DATABASE_URL)='"
-    check "nginx does not carry secrets" bash -c "! docker exec ${ID}-app bash -c 'cat /proc/\$(pgrep -o nginx)/environ' | tr '\\0' '\\n' | grep -qE '^(AUTH_SECRET|DATABASE_URL|NOTIFICATION_SECRET_ENCRYPTION_KEY)='"
+    # nginx inherits supervisor's environment (checked above; its own /proc environ is overwritten
+    # by its process title). The API must still get its secrets through app-env.sh.
+    check "API gets its secrets through app-env.sh" api_has_auth_secret
     check "Kaneo processes run as the app user (uid 1000)" test "$(app_exec bash -c 'for p in /proc/[0-9]*; do case "$(cat "$p/comm" 2>/dev/null)" in node|nginx) awk "/^Uid:/{print \$2}" "$p/status";; esac; done | sort -u | tr -d "\n"')" = "1000"
 }
 

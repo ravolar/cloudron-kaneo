@@ -103,7 +103,7 @@ run_checks() {
     check "index.html is revalidated (no stale chunk names after updates)" bash -c "curl -sI '${ORIGIN}/' | grep -qi '^cache-control: no-cache'"
     check "client-side routes are revalidated too" bash -c "curl -sI '${ORIGIN}/dashboard' | grep -qi '^cache-control: no-cache'"
     local asset
-    asset=$(app_exec ls /run/kaneo/html/assets | grep -m1 '\.js$')
+    asset=$(app_exec ls /run/kaneo/html/assets | grep '\.js$' | tail -n 1)
     check "hashed assets are cacheable" bash -c "curl -sI '${ORIGIN}/assets/${asset}' | grep -qi '^cache-control: public, max-age=604800'"
     check "API responses keep their own caching headers" bash -c "! curl -sI '${ORIGIN}/api/health' | grep -qi '^cache-control: no-cache\$'"
     check "source maps not served" test "$(status "${ORIGIN}/assets/x.js.map")" = 404
@@ -150,10 +150,14 @@ codes=$(for _ in $(seq 1 40); do status -X POST -H "Origin: ${ORIGIN}" -H 'Conte
     -d '{"email":"nobody@example.com","password":"wrong-password-123"}' "${ORIGIN}/api/auth/sign-in/email"; echo; done)
 check "password sign-in is rate-limited" grep -q 429 <<<"${codes}"
 
+asset_url="${ORIGIN}/assets/$(app_exec bash -c 'ls /run/kaneo/html/assets | grep "^get-api-url-.*\.js$" | tail -n 1')"
+etag_before=$(curl -sI "${asset_url}" | tr -d '\r' | awk 'tolower($1)=="etag:"{print $2}')
+
 echo "==> Restart"
 docker restart "${ID}-app" >/dev/null
 if wait_ready; then pass "app restarted"; else fail "app restarted"; docker logs "${ID}-app" 2>&1 | tail -40; exit 1; fi
 check "still healthy after restart" test "$(status "${ORIGIN}/api/health")" = 200
+check "rendered assets keep their ETag across restarts" test "$(curl -sI "${asset_url}" | tr -d '\r' | awk 'tolower($1)=="etag:"{print $2}')" = "${etag_before}"
 check "secrets kept across restart" test "$(app_exec stat -c %U:%a /app/data/.secrets/secrets.env)" = "root:600"
 whoami=$(mcp "${token}" '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"whoami","arguments":{}}}')
 check "sessions survive a restart (stable AUTH_SECRET)" grep -q "admin@example.com" <<<"${whoami}"

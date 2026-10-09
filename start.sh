@@ -239,8 +239,13 @@ find /run/kaneo/html -type f -name '*.js' -print0 |
         env -i LC_ALL=C KANEO_API_URL="${KANEO_API_URL}" KANEO_CLIENT_URL="${KANEO_CLIENT_URL}" \
             KANEO_TURNSTILE_SITE_KEY="$(file_value /app/data/env.sh KANEO_TURNSTILE_SITE_KEY)" \
             awk -v mode=bundle -f /app/code/env.awk "${asset}" > "${asset}.tmp"
-        # Keep the image's timestamp, so restarts don't invalidate the browsers' cached copies.
-        touch -r "${asset}" "${asset}.tmp"
+        # nginx's ETag is mtime + size. Derive the mtime from the image's timestamp and the
+        # rendered content: identical output keeps its ETag across restarts (browser caches stay
+        # valid), changed output (e.g. a new KANEO_TURNSTILE_SITE_KEY of the same length) gets a
+        # new one.
+        image_mtime=$(stat -c %Y "${asset}")
+        content_sum=$(cksum < "${asset}.tmp" | cut -d' ' -f1)
+        touch -d "@$((image_mtime - content_sum % 31536000))" "${asset}.tmp"
         mv -f "${asset}.tmp" "${asset}"
     done
 chown -R root:root /run/kaneo/html
@@ -251,7 +256,7 @@ env_value() { file_value /app/data/env.sh "$1"; }
 # Runtime parts of the nginx configuration.
 # - Client addresses are only taken from Cloudron's reverse proxy, not from other containers.
 proxy_ip=${CLOUDRON_PROXY_IP:-172.18.0.1}
-if [[ ! "${proxy_ip}" =~ ^[0-9a-fA-F.:]+$ ]]; then
+if [[ ! "${proxy_ip}" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ && ! "${proxy_ip}" =~ ^[0-9a-fA-F]*:[0-9a-fA-F:]+$ ]]; then
     echo "==> WARNING: unexpected CLOUDRON_PROXY_IP '${proxy_ip}', using 172.18.0.1"
     proxy_ip=172.18.0.1
 fi

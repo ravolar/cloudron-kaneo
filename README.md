@@ -168,7 +168,10 @@ Use a key restricted to the bucket.
   email, image, role). The patch is applied at build time and skipped once upstream fixes it.
 * **Rate limits** (per client address, at nginx): password, code and link sign-in, sign-up and
   password reset 10/min (burst 20), since Kaneo does not rate-limit them on self-hosted
-  instances; MCP client registration 5/min (burst 10).
+  instances; MCP client registration 1/min (burst 5). Kaneo keeps at most 1000 registered MCP
+  clients for 30 days, so many addresses together can still fill the store; new MCP clients then
+  can't connect until it is cleared (see [Troubleshooting](#troubleshooting)). The web app and
+  already connected clients are not affected.
 * **Clean environments.** Supervisor starts with an empty environment, so Cloudron's addon
   credentials and the package's secrets reach only the API (through `app-env.sh`), not nginx.
 * **No anonymous access by default**: guest access is off and registration is limited as

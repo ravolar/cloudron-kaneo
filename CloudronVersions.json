@@ -1,4 +1,54 @@
 {
     "stable": true,
-    "versions": {}
+    "versions": {
+        "0.1.0": {
+            "manifest": {
+                "manifestVersion": 2,
+                "id": "io.github.ravolar.kaneo",
+                "title": "Kaneo",
+                "tagline": "Open source project management with a built-in MCP server",
+                "description": "Kaneo is a clean, fast, open source project management tool: workspaces, projects, kanban and list\nviews, tasks with labels, assignees, due dates, comments, time tracking and task relations, with\nreal-time updates for everyone on the board.\n\n### Features\n\n* **Built-in MCP server** at `/api/mcp`: connect Claude, Cursor and other MCP clients over OAuth and\n  let them read and manage your projects and tasks with your permissions\n* **Sign in with Cloudron**: users log in with their Cloudron account (optional)\n* Workspaces with members, roles and invitations by email\n* Kanban and list views, custom fields, workflow rules, search and notifications\n* Integrations: GitHub, GitLab, Gitea, Slack, Discord, Telegram, Mattermost and webhooks\n* REST API with API keys, plus a command-line client\n\n### This package\n\n* Runs Kaneo's official build unmodified; PostgreSQL and outgoing email are provided by Cloudron\n* Attachments need S3-compatible object storage (optional)\n",
+                "changelog": "* Initial release: Kaneo 2.36.0\n* MCP whoami returns the user (id, name, email, role) instead of the full session, which included the caller's session token\n",
+                "postInstallMessage": "The **first account** that signs up becomes the instance administrator: open the app and create it now.\n\n* With Cloudron user management, sign in with **Continue with OIDC**; new users then join with their\n  Cloudron account or an invitation.\n* Without it, sign up with email and password; further users join by invitation only.\n\nTo connect an MCP client (Claude, Cursor, ...), use `https://$CLOUDRON-APP-DOMAIN/api/mcp`.\n\nSign-up policy, attachments (S3 storage) and integrations are set in `/app/data/env.sh`\n(File Manager); restart the app after editing.\n",
+                "version": "0.1.0",
+                "upstreamVersion": "2.36.0",
+                "website": "https://kaneo.app",
+                "documentationUrl": "https://kaneo.app/docs/core/installation",
+                "packagerName": "ravolar",
+                "packagerUrl": "https://github.com/ravolar/cloudron-kaneo",
+                "iconUrl": "https://raw.githubusercontent.com/ravolar/cloudron-kaneo/main/logo.png",
+                "icon": "file://logo.png",
+                "mediaLinks": [
+                    "https://raw.githubusercontent.com/ravolar/cloudron-kaneo/main/logo.png"
+                ],
+                "tags": [
+                    "project-management",
+                    "kanban",
+                    "productivity",
+                    "mcp"
+                ],
+                "httpPort": 8000,
+                "healthCheckPath": "/api/health",
+                "memoryLimit": 1073741824,
+                "optionalSso": true,
+                "addons": {
+                    "localstorage": {},
+                    "postgresql": {},
+                    "sendmail": {
+                        "supportsDisplayName": true
+                    },
+                    "oidc": {
+                        "loginRedirectUri": "/api/auth/oauth2/callback/custom",
+                        "tokenSignatureAlgorithm": "RS256"
+                    }
+                },
+                "minBoxVersion": "10.0.0",
+                "packageUrl": "https://github.com/ravolar/cloudron-kaneo",
+                "dockerImage": "ghcr.io/ravolar/cloudron-kaneo@sha256:e5ca33f48d1341b0bf48ea28d2b6ee45e1582b6ac12ca1747f6be3ee32d55514"
+            },
+            "creationDate": "Fri, 09 Oct 2026 18:06:17 GMT",
+            "ts": "Fri, 09 Oct 2026 18:06:17 GMT",
+            "publishState": "published"
+        }
+    }
 }

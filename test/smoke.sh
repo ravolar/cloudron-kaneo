@@ -94,6 +94,12 @@ run_checks() {
     check "MCP metadata also under /api" test "$(curl -fs "${ORIGIN}/api/.well-known/oauth-protected-resource/api/mcp" | jq -r .resource)" = "${ORIGIN}/api/mcp"
     check "MCP without a token asks for OAuth" bash -c "curl -s -D - -o /dev/null -X POST -H 'content-type: application/json' -d '{}' '${ORIGIN}/api/mcp' | grep -qi '^www-authenticate: Bearer resource_metadata=\"${ORIGIN}/api/'"
     check "other /.well-known paths are not served" test "$(status "${ORIGIN}/.well-known/foo")" = 404
+    check "index.html is revalidated (no stale chunk names after updates)" bash -c "curl -sI '${ORIGIN}/' | grep -qi '^cache-control: no-cache'"
+    check "client-side routes are revalidated too" bash -c "curl -sI '${ORIGIN}/dashboard' | grep -qi '^cache-control: no-cache'"
+    local asset
+    asset=$(app_exec ls /run/kaneo/html/assets | grep -m1 '\.js$')
+    check "hashed assets are cacheable" bash -c "curl -sI '${ORIGIN}/assets/${asset}' | grep -qi '^cache-control: public, max-age=604800'"
+    check "API responses keep their own caching headers" bash -c "! curl -sI '${ORIGIN}/api/health' | grep -qi '^cache-control: no-cache\$'"
     check "source maps not served" test "$(status "${ORIGIN}/assets/x.js.map")" = 404
     check "only port 8000 listens on all interfaces" app_exec bash -c \
         'test "$(cat /proc/net/tcp /proc/net/tcp6 | awk "\$4==\"0A\"{print \$2}" | grep -E "^0+:" | sed "s/.*://" | sort -u | tr "\n" " ")" = "1F40 "'

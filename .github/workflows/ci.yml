@@ -1,0 +1,39 @@
+# Lint, build the image (with its build-time checks) and run the smoke test for every pull request
+# and push to main. Nothing is published here; releases go through "Update Kaneo" (update.yml).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths-ignore: ["CloudronVersions.json", "*.md"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Lint
+        run: |
+          bash -n start.sh app-env.sh test/smoke.sh
+          shellcheck -S warning start.sh app-env.sh test/smoke.sh
+          node --check loopback.mjs
+          jq empty CloudronManifest.json CloudronVersions.json
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build image (runs the build-time checks)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: cloudron-kaneo:ci
+
+      - name: Smoke test
+        run: test/smoke.sh cloudron-kaneo:ci

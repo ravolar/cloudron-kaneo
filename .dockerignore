@@ -1,0 +1,10 @@
+.git
+.github
+*.md
+CHANGELOG
+CloudronManifest.json
+CloudronVersions.json
+logo.png
+.gitignore
+test
+LICENSE

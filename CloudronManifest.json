@@ -1,0 +1,43 @@
+{
+  "manifestVersion": 2,
+  "id": "io.github.ravolar.kaneo",
+  "title": "Kaneo",
+  "tagline": "Open source project management with a built-in MCP server",
+  "description": "file://DESCRIPTION.md",
+  "changelog": "file://CHANGELOG",
+  "postInstallMessage": "file://POSTINSTALL.md",
+  "version": "0.1.0",
+  "upstreamVersion": "2.36.0",
+  "website": "https://kaneo.app",
+  "documentationUrl": "https://kaneo.app/docs/core/installation",
+  "packagerName": "ravolar",
+  "packagerUrl": "https://github.com/ravolar/cloudron-kaneo",
+  "iconUrl": "https://raw.githubusercontent.com/ravolar/cloudron-kaneo/main/logo.png",
+  "icon": "file://logo.png",
+  "mediaLinks": [
+    "https://raw.githubusercontent.com/ravolar/cloudron-kaneo/main/logo.png"
+  ],
+  "tags": [
+    "project-management",
+    "kanban",
+    "productivity",
+    "mcp"
+  ],
+  "httpPort": 8000,
+  "healthCheckPath": "/api/health",
+  "memoryLimit": 1073741824,
+  "optionalSso": true,
+  "addons": {
+    "localstorage": {},
+    "postgresql": {},
+    "sendmail": {
+      "supportsDisplayName": true
+    },
+    "oidc": {
+      "loginRedirectUri": "/api/auth/oauth2/callback/custom",
+      "tokenSignatureAlgorithm": "RS256"
+    }
+  },
+  "minBoxVersion": "10.0.0",
+  "packageUrl": "https://github.com/ravolar/cloudron-kaneo"
+}

@@ -6,7 +6,7 @@
   "description": "file://DESCRIPTION.md",
   "changelog": "file://CHANGELOG",
   "postInstallMessage": "file://POSTINSTALL.md",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "upstreamVersion": "2.36.0",
   "website": "https://kaneo.app",
   "documentationUrl": "https://kaneo.app/docs/core/installation",

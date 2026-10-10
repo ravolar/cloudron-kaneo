@@ -147,6 +147,55 @@
             "creationDate": "Fri, 09 Oct 2026 19:22:05 GMT",
             "ts": "Fri, 09 Oct 2026 19:22:05 GMT",
             "publishState": "published"
+        },
+        "0.1.3": {
+            "manifest": {
+                "manifestVersion": 2,
+                "id": "io.github.ravolar.kaneo",
+                "title": "Kaneo",
+                "tagline": "Open source project management with a built-in MCP server",
+                "description": "Kaneo is a clean, fast, open source project management tool: workspaces, projects, kanban and list\nviews, tasks with labels, assignees, due dates, comments, time tracking and task relations, with\nreal-time updates for everyone on the board.\n\n### Features\n\n* **Built-in MCP server** at `/api/mcp`: connect Claude, Cursor and other MCP clients over OAuth and\n  let them read and manage your projects and tasks with your permissions\n* **Sign in with Cloudron**: users log in with their Cloudron account (optional)\n* Workspaces with members, roles and invitations by email\n* Kanban and list views, custom fields, workflow rules, search and notifications\n* Integrations: GitHub, GitLab, Gitea, Slack, Discord, Telegram, Mattermost and webhooks\n* REST API with API keys, plus a command-line client\n\n### This package\n\n* Runs Kaneo's official build unmodified; PostgreSQL and outgoing email are provided by Cloudron\n* Attachments need S3-compatible object storage (optional)\n",
+                "changelog": "* Sign-off review fixes: asset ETags follow content, tighter MCP limit\n",
+                "postInstallMessage": "The **first account** becomes the instance administrator: open the app and sign in **now**.\n\n* With Cloudron user management, sign in with **Continue with OIDC**. Only Cloudron users can sign\n  in; the app's access settings decide who.\n* Without it, sign up with email and password, then check under Admin that you are the only user;\n  further users join by invitation only.\n\nTo connect an MCP client (Claude, Cursor, ...), use `https://$CLOUDRON-APP-DOMAIN/api/mcp`.\n\nSign-in policy, attachments (S3 storage) and integrations are set in `/app/data/env.sh`\n(File Manager); restart the app after editing.\n",
+                "version": "0.1.3",
+                "upstreamVersion": "2.36.0",
+                "website": "https://kaneo.app",
+                "documentationUrl": "https://kaneo.app/docs/core/installation",
+                "packagerName": "ravolar",
+                "packagerUrl": "https://github.com/ravolar/cloudron-kaneo",
+                "iconUrl": "https://raw.githubusercontent.com/ravolar/cloudron-kaneo/main/logo.png",
+                "icon": "file://logo.png",
+                "mediaLinks": [
+                    "https://raw.githubusercontent.com/ravolar/cloudron-kaneo/main/logo.png"
+                ],
+                "tags": [
+                    "project-management",
+                    "kanban",
+                    "productivity",
+                    "mcp"
+                ],
+                "httpPort": 8000,
+                "healthCheckPath": "/api/health",
+                "memoryLimit": 1073741824,
+                "optionalSso": true,
+                "addons": {
+                    "localstorage": {},
+                    "postgresql": {},
+                    "sendmail": {
+                        "supportsDisplayName": true
+                    },
+                    "oidc": {
+                        "loginRedirectUri": "/api/auth/oauth2/callback/custom",
+                        "tokenSignatureAlgorithm": "RS256"
+                    }
+                },
+                "minBoxVersion": "10.0.0",
+                "packageUrl": "https://github.com/ravolar/cloudron-kaneo",
+                "dockerImage": "ghcr.io/ravolar/cloudron-kaneo@sha256:ea86796e27148466000b375983d76902fef3da979677cac38aab36a4109c2541"
+            },
+            "creationDate": "Sat, 10 Oct 2026 05:30:25 GMT",
+            "ts": "Sat, 10 Oct 2026 05:30:25 GMT",
+            "publishState": "published"
         }
     }
 }

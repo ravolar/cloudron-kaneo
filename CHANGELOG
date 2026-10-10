@@ -7,3 +7,6 @@
 
 [0.1.2]
 * Review fixes: Cloudron sign-in only by default, rate limits, clean environment
+
+[0.1.3]
+* Sign-off review fixes: asset ETags follow content, tighter MCP limit

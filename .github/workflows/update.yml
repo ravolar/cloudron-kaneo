@@ -1,16 +1,21 @@
-# One-button update: Actions -> "Update Kaneo" -> Run workflow.
+# Automatic updates: runs every 3 hours (and on demand: Actions -> "Update Kaneo" -> Run workflow).
 #
 # 1. Looks up Kaneo's latest GitHub release and the digest of ghcr.io/usekaneo/kaneo:<version>.
 # 2. If it is newer than the pinned one (or if "release package changes" is ticked), pins it,
 #    bumps the package version, writes the CHANGELOG entry and builds the image with its
 #    build-time checks. The build stops if upstream changed its startup files (upstream.sha256):
 #    review them against start.sh / nginx.conf first.
-# 3. Runs test/smoke.sh: the image the way Cloudron runs it, with PostgreSQL, including MCP.
-# 4. Only if that passes: pushes the image to GHCR, adds the version to CloudronVersions.json as
-#    published, commits and tags. Installations then see the update in Cloudron (Updates tab).
+# 3. Runs test/smoke.sh (the image the way Cloudron runs it, with PostgreSQL, including MCP) and
+#    test/upgrade.sh (the last published version with real data, updated to the candidate).
+# 4. Only if all of that passes: pushes the image to GHCR, adds the version to
+#    CloudronVersions.json as published, commits and tags. Installations then see the update in
+#    Cloudron (app -> Updates; installed automatically only where automatic updates are on).
+# A failed run opens (or comments on) a GitHub issue, so a blocked update is visible.
 name: Update Kaneo
 
 on:
+  schedule:
+    - cron: "17 */3 * * *"
   workflow_dispatch:
     inputs:
       release_package_changes:
@@ -25,6 +30,7 @@ on:
 permissions:
   contents: write
   packages: write
+  issues: write
 
 concurrency:
   group: release
@@ -123,8 +129,8 @@ jobs:
       - name: Lint
         if: steps.plan.outputs.release == 'true'
         run: |
-          bash -n start.sh app-env.sh test/smoke.sh
-          shellcheck -S warning start.sh app-env.sh test/smoke.sh
+          bash -n start.sh app-env.sh test/smoke.sh test/upgrade.sh
+          shellcheck -S warning start.sh app-env.sh test/smoke.sh test/upgrade.sh
           node --check loopback.mjs
           jq empty CloudronManifest.json CloudronVersions.json
 
@@ -144,6 +150,14 @@ jobs:
       - name: Smoke test
         if: steps.plan.outputs.release == 'true'
         run: test/smoke.sh cloudron-kaneo:candidate
+
+      - name: Upgrade test (last published version with data -> candidate)
+        if: steps.plan.outputs.release == 'true'
+        run: |
+          old=$(jq -r '[.versions | to_entries[] | select(.value.publishState == "published")]
+            | sort_by(.key | split(".") | map(tonumber)) | last | .value.manifest.dockerImage // empty' CloudronVersions.json)
+          if [[ -z "${old}" ]]; then echo "no published version yet; skipping"; exit 0; fi
+          test/upgrade.sh "${old}" cloudron-kaneo:candidate
 
       - name: Log in to GHCR
         if: steps.plan.outputs.release == 'true'
@@ -179,6 +193,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Dockerfile CloudronManifest.json CHANGELOG CloudronVersions.json
           git commit -m "Release ${VERSION} (Kaneo ${KANEO})"
+          # main may have moved while this ran (package changes); the release files are ours.
+          git pull --rebase origin main
           git tag -a "v${VERSION}" -m "Kaneo for Cloudron ${VERSION}"
           git push origin main "v${VERSION}"
           {
@@ -187,3 +203,22 @@ jobs:
             echo
             echo "Update the app from the Cloudron dashboard: app → Updates."
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report a failed update
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KANEO: ${{ steps.upstream.outputs.version }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Automatic update to Kaneo ${KANEO:-?} failed"
+          existing=$(gh issue list --state open --search "\"${title}\" in:title" --json number --jq '.[0].number // empty')
+          if [[ -n "${existing}" ]]; then
+            gh issue comment "${existing}" --body "Failed again: ${RUN_URL}"
+          else
+            gh issue create --title "${title}" --body "The automatic update stopped before publishing, so nothing was released and installations are unaffected.
+
+          Run: ${RUN_URL}
+
+          Typical causes: a build-time check (e.g. upstream changed its startup files, see upstream.sha256 in the README), the smoke test or the upgrade test. Fix on main; the next scheduled run retries."
+          fi

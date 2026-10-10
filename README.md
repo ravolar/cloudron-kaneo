@@ -202,9 +202,12 @@ when those sign-in options are not configured.
 
 ### Updates
 
-New versions are published to `CloudronVersions.json` only after an automated smoke test of the
-exact image, including an MCP round trip (see [Development and releasing](#development-and-releasing)).
-Cloudron offers the update in the app's **Updates** view and backs up the app first. Kaneo runs
+New Kaneo releases are packaged automatically: every 3 hours GitHub Actions checks for a new
+release, builds it and publishes it to `CloudronVersions.json` only after the smoke test (including
+an MCP round trip) and an upgrade test with real data have passed for the exact image (see
+[Development and releasing](#development-and-releasing)). Cloudron then offers the update in the
+app's **Updates** view, and installs it by itself only if automatic updates are enabled for the
+app; either way it backs up the app first. Kaneo runs
 its database migrations on start and does **not** support downgrades: to go back, restore the
 pre-update backup from **Backups**.
 
@@ -269,6 +272,11 @@ cloudron install --location kaneo.example.com
 cloudron logs -f --app kaneo.example.com
 ```
 
+`test/upgrade.sh <old image> <new image>` does what a Cloudron update does: it starts the old
+image, creates an account, a workspace, a project, a task and a comment through the API and MCP,
+replaces the container with the new image on the same data and database, and checks migrations,
+the data, the old session, secrets and settings, writing new data and a restart.
+
 `test/smoke.sh <image>` runs an image the way Cloudron does (read-only root filesystem, data and
 runtime volumes) next to PostgreSQL and checks start-up, migrations, the web app's rendered URLs,
 the MCP discovery documents, sign-up policy, an MCP session (initialize, tools/list, a tool call),
@@ -276,21 +284,24 @@ loopback-only API, file ownership and a restart. It needs Docker, curl and jq.
 
 | Workflow | When | What |
 |---|---|---|
-| `ci.yml` | every PR and push to main | lint, image build with the build-time checks, smoke test |
-| `update.yml` (**Update Kaneo**) | by hand | the release button, below |
+| `ci.yml` | every PR and push to main | lint, image build with the build-time checks, smoke test, upgrade test from the last published version |
+| `update.yml` (**Update Kaneo**) | every 3 hours, and by hand | automatic releases, below |
 
-**Releasing** is one button: Actions → **Update Kaneo** → Run workflow. It
+**Releasing is automatic.** `update.yml` runs every 3 hours (or by hand: Actions → **Update Kaneo**
+→ Run workflow; tick *release package changes* to release changes on main without a new Kaneo
+version, with a CHANGELOG line in *notes*). It
 
 1. looks up Kaneo's latest GitHub release and the digest of `ghcr.io/usekaneo/kaneo:<version>`,
    and stops if that version is already packaged, unless *release package changes* is ticked (then
    add a CHANGELOG line in *notes*);
 2. pins the new version and digest, bumps the patch version, sets `upstreamVersion`, writes the
    CHANGELOG entry;
-3. builds the image and runs the smoke test;
+3. builds the image and runs the smoke test and the upgrade test from the last published version;
 4. only if everything passes, pushes `ghcr.io/ravolar/cloudron-kaneo:X.Y.Z`, adds it to
    `CloudronVersions.json` as published, commits and tags `vX.Y.Z`.
 
-If the build stops at the `upstream.sha256` check, compare the new upstream files
+If any step fails, nothing is published and the run opens a GitHub issue (or comments on the open
+one); the next scheduled run retries. If the build stops at the `upstream.sha256` check, compare the new upstream files
 (`apps/web/nginx.kaneo.conf`, `apps/web/env.awk`, `apps/web/env.sh`, `deploy/kaneo-entrypoint.sh`)
 with the previous release, carry relevant changes into `start.sh` / `nginx.conf`, update the
 checksums and run the workflow again.

@@ -82,7 +82,7 @@ wait_ready() {
 mcp() {
     curl -s -X POST "${ORIGIN}/api/mcp" -H "Authorization: Bearer $1" \
         -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
-        -H 'MCP-Protocol-Version: 2025-06-18' -d "$2" | sed -n 's/^data: //p; /^{/p'
+        -H 'MCP-Protocol-Version: 2025-06-18' -d "$2" | sed -n 's/^data: //p; t; /^{/p'
 }
 
 run_checks() {

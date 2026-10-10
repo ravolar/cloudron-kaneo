@@ -10,3 +10,6 @@
 
 [0.1.3]
 * Sign-off review fixes: asset ETags follow content, tighter MCP limit
+
+[0.1.4]
+* Update Kaneo to 2.37.0 (https://github.com/usekaneo/kaneo/releases/tag/v2.37.0)

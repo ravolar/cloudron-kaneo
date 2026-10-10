@@ -5,7 +5,7 @@
 # the Cloudron base image: the API on 127.0.0.1:1337 and nginx on port 8000 (single origin, /api
 # proxied to the API, like upstream's own image).
 
-FROM ghcr.io/usekaneo/kaneo:2.37.0@sha256:c3a77cfea532916ceee60e49e6140a3e4ea17261e911a81c9e96332d9bba7cbb AS kaneo
+FROM ghcr.io/usekaneo/kaneo:2.38.0@sha256:a5650b1b06ac0da0ede15e6a6ac7d2b3a4549b5de5ccac6aa44f2aadbcc493ad AS kaneo
 
 FROM cloudron/node-base:24-20260920@sha256:d984683ec59bf2379130bf41cf3c2b6bc0453f327297d7183525cb05424e7b34
 

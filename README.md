@@ -15,7 +15,8 @@ This is an **unofficial** package, not affiliated with or supported by the Kaneo
 
 ## What you get
 
-* Kaneo's official build, unmodified: the API and the web app on one domain, real-time boards,
+* Kaneo's official build (with one security fix, see [MCP `whoami` patched](#security-model)): the
+  API and the web app on one domain, real-time boards,
   REST API, integrations (GitHub, GitLab, Gitea, Slack, Discord, Telegram, Mattermost, webhooks).
 * **MCP server** at `https://<app domain>/api/mcp` with OAuth 2.1 sign-in, plus the discovery
   documents MCP clients look for at the domain root.
@@ -333,4 +334,5 @@ production. There is no guaranteed response time and no warranty (see the licens
 
 Kaneo is © Andrej Acevski and contributors, licensed under the
 [MIT License](https://github.com/usekaneo/kaneo/blob/main/LICENSE). This package runs Kaneo's
-official image unmodified and is likewise MIT licensed (see `LICENSE`).
+official image with one small patch (the MCP `whoami` fix, applied at build time) and is likewise
+MIT licensed (see `LICENSE`).

@@ -16,5 +16,7 @@ real-time updates for everyone on the board.
 
 ### This package
 
-* Runs Kaneo's official build unmodified; PostgreSQL and outgoing email are provided by Cloudron
+* Runs Kaneo's official build; the only change is a small security fix to the MCP `whoami` tool,
+  which upstream lets return the caller's session token. PostgreSQL and outgoing email are
+  provided by Cloudron
 * Attachments need S3-compatible object storage (optional)

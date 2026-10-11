@@ -1,3 +1,5 @@
+This is an **unofficial community package**, not affiliated with or supported by the Kaneo authors.
+
 Kaneo is a clean, fast, open source project management tool: workspaces, projects, kanban and list
 views, tasks with labels, assignees, due dates, comments, time tracking and task relations, with
 real-time updates for everyone on the board.

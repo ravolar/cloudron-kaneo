@@ -35,8 +35,9 @@ no_match() { ! grep -qE "$1" <<<"$2"; }
 # Reads the API's environment as its own user (root in the container may not read other users'
 # /proc/<pid>/environ without CAP_SYS_PTRACE).
 api_has_auth_secret() {
-    docker exec -u cloudron "${ID}-app" bash -c 'tr "\0" "\n" < "/proc/$(pgrep -f dist/index.js | head -1)/environ"' |
-        grep -q '^AUTH_SECRET='
+    local env
+    env=$(docker exec -u cloudron "${ID}-app" bash -c 'tr "\0" "\n" < "/proc/$(pgrep -f dist/index.js | head -1)/environ"')
+    grep -q '^AUTH_SECRET=' <<<"${env}"
 }
 status() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
 
@@ -70,7 +71,8 @@ wait_ready() {
         if [[ "$(status "${ORIGIN}/api/health")" == 200 ]]; then
             return 0
         fi
-        if docker logs "${ID}-app" 2>&1 | grep -qE "migration failed|Refusing to start|==> ERROR"; then
+        logs=$(docker logs "${ID}-app" 2>&1)  # captured first: `docker logs | grep -q` under pipefail can SIGPIPE
+        if grep -qE "migration failed|Refusing to start|==> ERROR" <<<"${logs}"; then
             return 1
         fi
         sleep 2

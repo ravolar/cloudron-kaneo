@@ -51,7 +51,8 @@ wait_ready() {
         if [[ "$(curl -s -o /dev/null -w '%{http_code}' "${ORIGIN}/api/health")" == 200 ]]; then
             return 0
         fi
-        if docker logs "${ID}-app" 2>&1 | grep -qE "migration failed|Refusing to start|==> ERROR"; then
+        logs=$(docker logs "${ID}-app" 2>&1)  # captured first: `docker logs | grep -q` under pipefail can SIGPIPE
+        if grep -qE "migration failed|Refusing to start|==> ERROR" <<<"${logs}"; then
             return 1
         fi
         sleep 2

@@ -13,6 +13,18 @@ This is an **unofficial** package, not affiliated with or supported by the Kaneo
 | Install URL | `https://raw.githubusercontent.com/ravolar/cloudron-kaneo/main/CloudronVersions.json` |
 | Image | `ghcr.io/ravolar/cloudron-kaneo` |
 
+## Install (no CLI needed)
+
+In your Cloudron dashboard open **App Store → Add custom app → Community app**, paste this URL and
+click **Install**:
+
+```
+https://raw.githubusercontent.com/ravolar/cloudron-kaneo/main/CloudronVersions.json
+```
+
+New versions then show up in the dashboard (app → **Updates**), like App Store apps. First steps
+after installing: [Installation](#installation).
+
 ## What you get
 
 * Kaneo's official build (with one security fix, see [MCP `whoami` patched](#security-model)): the
@@ -38,7 +50,7 @@ This is an **unofficial** package, not affiliated with or supported by the Kaneo
    https://raw.githubusercontent.com/ravolar/cloudron-kaneo/main/CloudronVersions.json
    ```
 
-   (CLI: `cloudron install --versions-url <url> --location kaneo.example.com`)
+   (Optional, with the Cloudron CLI instead: `cloudron install --versions-url <url> --location kaneo.example.com`)
 2. Choose whether the app uses **Cloudron user management** (recommended) and who may access it.
 3. Open the app right away and create the **first account**: it becomes the instance
    administrator. With Cloudron user management, use **Continue with OIDC**.

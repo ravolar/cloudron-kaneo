@@ -54,6 +54,18 @@ sleep 2
 
 mkdir -p "${WORK}/data"
 
+# 401 with WWW-Authenticate: Bearer resource_metadata="<url>", and that URL serves this app's MCP metadata. Upstream
+# moved the URL from /api/.well-known/… to the RFC 9728 /.well-known/oauth-protected-resource/api/mcp in 2.47.0; both
+# are served here, so check what the header says rather than one fixed form.
+mcp_asks_for_oauth() {
+    local headers url
+    headers=$(curl -s -D - -o /dev/null -X POST -H 'content-type: application/json' -d '{}' "${ORIGIN}/api/mcp")
+    grep -q '^HTTP/[0-9.]* 401' <<<"${headers}" || return 1
+    url=$(grep -i '^www-authenticate: Bearer ' <<<"${headers}" | sed -nE 's/.*resource_metadata="([^"]+)".*/\1/p' | tr -d '\r')
+    [[ "${url}" == "${ORIGIN}/"* ]] || return 1
+    [[ "$(curl -fs "${url}" | jq -r .resource)" == "${ORIGIN}/api/mcp" ]]
+}
+
 start_app() {
     docker run -d --name "${ID}-app" --network "${ID}" --read-only \
         -p "127.0.0.1:${PORT}:8000" \
@@ -100,7 +112,7 @@ run_checks() {
     check "MCP resource metadata" test "$(curl -fs "${ORIGIN}/.well-known/oauth-protected-resource/api/mcp" | jq -r .resource)" = "${ORIGIN}/api/mcp"
     check "MCP authorization server metadata" test "$(curl -fs "${ORIGIN}/.well-known/oauth-authorization-server/api" | jq -r .token_endpoint)" = "${ORIGIN}/api/mcp/token"
     check "MCP metadata also under /api" test "$(curl -fs "${ORIGIN}/api/.well-known/oauth-protected-resource/api/mcp" | jq -r .resource)" = "${ORIGIN}/api/mcp"
-    check "MCP without a token asks for OAuth" bash -c "curl -s -D - -o /dev/null -X POST -H 'content-type: application/json' -d '{}' '${ORIGIN}/api/mcp' | grep -qi '^www-authenticate: Bearer resource_metadata=\"${ORIGIN}/api/'"
+    check "MCP without a token asks for OAuth" mcp_asks_for_oauth
     check "other /.well-known paths are not served" test "$(status "${ORIGIN}/.well-known/foo")" = 404
     check "index.html is revalidated (no stale chunk names after updates)" bash -c "curl -sI '${ORIGIN}/' | grep -qi '^cache-control: no-cache'"
     check "client-side routes are revalidated too" bash -c "curl -sI '${ORIGIN}/dashboard' | grep -qi '^cache-control: no-cache'"

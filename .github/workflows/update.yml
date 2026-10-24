@@ -76,7 +76,8 @@ jobs:
             echo "latest release ${VERSION} is older than the pinned ${current}" >&2; exit 1
           fi
           sed -i -E "s#ghcr.io/usekaneo/kaneo:[0-9.]+@sha256:[0-9a-f]+#ghcr.io/usekaneo/kaneo:${VERSION}@${DIGEST}#" Dockerfile
-          if git diff --quiet Dockerfile; then upstream=false; else upstream=true; fi
+          # Also an update when the pin was already bumped on main (after an upstream.sha256 review) but not released yet.
+          if [[ "${current}" == "${VERSION}" ]] && git diff --quiet Dockerfile; then upstream=false; else upstream=true; fi
           echo "upstream=${upstream}" >> "$GITHUB_OUTPUT"
           # The manifest version not yet in CloudronVersions.json (first release): publish it as is.
           if jq -e --arg v "$(jq -r .version CloudronManifest.json)" '.versions | has($v)' CloudronVersions.json >/dev/null; then

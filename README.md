@@ -317,9 +317,10 @@ version, with a CHANGELOG line in *notes*). It
 
 If any step fails, nothing is published and the run opens a GitHub issue (or comments on the open
 one); the next scheduled run retries. If the build stops at the `upstream.sha256` check, compare the new upstream files
-(`apps/web/nginx.kaneo.conf`, `apps/web/env.awk`, `apps/web/env.sh`, `deploy/kaneo-entrypoint.sh`)
-with the previous release, carry relevant changes into `start.sh` / `nginx.conf`, update the
-checksums and run the workflow again.
+(`apps/web/nginx.kaneo.conf`, `apps/web/env.awk`, `apps/web/env.sh`, `apps/web/runtime-storage.sh`,
+`deploy/kaneo-entrypoint.sh`) with the previous release, carry relevant changes into `start.sh` / `nginx.conf`, then
+commit the new pin in the `Dockerfile` together with the new checksums (so `main` builds as is). The next run releases
+it as a Kaneo update; nothing needs to be ticked.
 
 To withdraw a published version, mark it revoked (`cloudron versions revoke --version X.Y.Z`, or
 set its `publishState` to `revoked`) and commit `CloudronVersions.json`.

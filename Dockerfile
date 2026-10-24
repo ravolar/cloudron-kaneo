@@ -5,7 +5,7 @@
 # the Cloudron base image: the API on 127.0.0.1:1337 and nginx on port 8000 (single origin, /api
 # proxied to the API, like upstream's own image).
 
-FROM ghcr.io/usekaneo/kaneo:2.46.2@sha256:f44be9aa22546f95c59076bee86678bffcaf5e5d4b960c58a107ad1a05cd1f90 AS kaneo
+FROM ghcr.io/usekaneo/kaneo:2.47.0@sha256:3df62194406061d9a162409b4c08d8af5225e423ce813d509694cea616ac9d23 AS kaneo
 
 FROM cloudron/node-base:24-20260920@sha256:d984683ec59bf2379130bf41cf3c2b6bc0453f327297d7183525cb05424e7b34
 
@@ -16,6 +16,7 @@ COPY --from=kaneo /docker-entrypoint.d/env.awk /app/code/env.awk
 COPY --from=kaneo /etc/nginx/conf.d/default.conf /app/code/upstream/nginx.kaneo.conf
 COPY --from=kaneo /docker-entrypoint.d/env.sh /app/code/upstream/env.sh
 COPY --from=kaneo /usr/local/bin/kaneo-entrypoint.sh /app/code/upstream/kaneo-entrypoint.sh
+COPY --from=kaneo /docker-entrypoint.d/05-kaneo-runtime-storage.sh /app/code/upstream/05-kaneo-runtime-storage.sh
 
 # Upstream's startup logic is re-implemented in start.sh and nginx.conf. If upstream changes it, stop
 # here so the package is reviewed against the new version instead of silently drifting.

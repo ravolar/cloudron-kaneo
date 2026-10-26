@@ -588,6 +588,55 @@
             "creationDate": "Sun, 25 Oct 2026 20:57:19 GMT",
             "ts": "Sun, 25 Oct 2026 20:57:19 GMT",
             "publishState": "published"
+        },
+        "0.1.12": {
+            "manifest": {
+                "manifestVersion": 2,
+                "id": "io.github.ravolar.kaneo",
+                "title": "Kaneo",
+                "tagline": "Open source project management with a built-in MCP server",
+                "description": "This is an **unofficial community package**, not affiliated with or supported by the Kaneo authors.\n\nKaneo is a clean, fast, open source project management tool: workspaces, projects, kanban and list\nviews, tasks with labels, assignees, due dates, comments, time tracking and task relations, with\nreal-time updates for everyone on the board.\n\n### Features\n\n* **Built-in MCP server** at `/api/mcp`: connect Claude, Cursor and other MCP clients over OAuth and\n  let them read and manage your projects and tasks with your permissions\n* **Sign in with Cloudron**: users log in with their Cloudron account (optional)\n* Workspaces with members, roles and invitations by email\n* Kanban and list views, custom fields, workflow rules, search and notifications\n* Integrations: GitHub, GitLab, Gitea, Slack, Discord, Telegram, Mattermost and webhooks\n* REST API with API keys, plus a command-line client\n\n### This package\n\n* Runs Kaneo's official build; the only change is a small security fix to the MCP `whoami` tool,\n  which upstream lets return the caller's session token. PostgreSQL and outgoing email are\n  provided by Cloudron\n* Attachments need S3-compatible object storage (optional)\n",
+                "changelog": "* Update Kaneo to 2.48.0 (https://github.com/usekaneo/kaneo/releases/tag/v2.48.0)\n",
+                "postInstallMessage": "The **first account** becomes the instance administrator: open the app and sign in **now**.\n\n* With Cloudron user management, sign in with **Continue with OIDC**. Only Cloudron users can sign\n  in; the app's access settings decide who.\n* Without it, sign up with email and password, then check under Admin that you are the only user;\n  further users join by invitation only.\n\nTo connect an MCP client (Claude, Cursor, ...), use `https://$CLOUDRON-APP-DOMAIN/api/mcp`.\n\nSign-in policy, attachments (S3 storage) and integrations are set in `/app/data/env.sh`\n(File Manager); restart the app after editing.\n",
+                "version": "0.1.12",
+                "upstreamVersion": "2.48.0",
+                "website": "https://kaneo.app",
+                "documentationUrl": "https://kaneo.app/docs/core/installation",
+                "packagerName": "ravolar",
+                "packagerUrl": "https://github.com/ravolar/cloudron-kaneo",
+                "iconUrl": "https://raw.githubusercontent.com/ravolar/cloudron-kaneo/main/logo.png",
+                "icon": "file://logo.png",
+                "mediaLinks": [
+                    "https://raw.githubusercontent.com/ravolar/cloudron-kaneo/main/logo.png"
+                ],
+                "tags": [
+                    "project-management",
+                    "kanban",
+                    "productivity",
+                    "mcp"
+                ],
+                "httpPort": 8000,
+                "healthCheckPath": "/api/health",
+                "memoryLimit": 1073741824,
+                "optionalSso": true,
+                "addons": {
+                    "localstorage": {},
+                    "postgresql": {},
+                    "sendmail": {
+                        "supportsDisplayName": true
+                    },
+                    "oidc": {
+                        "loginRedirectUri": "/api/auth/oauth2/callback/custom",
+                        "tokenSignatureAlgorithm": "RS256"
+                    }
+                },
+                "minBoxVersion": "10.0.0",
+                "packageUrl": "https://github.com/ravolar/cloudron-kaneo",
+                "dockerImage": "ghcr.io/ravolar/cloudron-kaneo@sha256:4a7f256f35acce23c4150e1e56e7a7adc8b0444105c489b6340148d7d34980f7"
+            },
+            "creationDate": "Mon, 26 Oct 2026 20:34:26 GMT",
+            "ts": "Mon, 26 Oct 2026 20:34:26 GMT",
+            "publishState": "published"
         }
     }
 }
